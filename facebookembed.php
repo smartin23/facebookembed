@@ -27,6 +27,7 @@ class plgContentFacebookEmbed extends JPlugin
 	public $fan_id;
 	public $app_id;
 	public $secret_key;
+	public $max_photos;
 
 	/**
 	* Constructor
@@ -43,6 +44,7 @@ class plgContentFacebookEmbed extends JPlugin
 		$this->fan_id=$pluginParams->get('fan_id','');
 		$this->app_id=$pluginParams->get('app_id','');
 		$this->secret_key=$pluginParams->get('secret_key','');
+		$this->max_photos=$pluginParams->get('max_photos','10');
 		
 		$this->facebook = new Facebook(array(
 		'appId'  => $this->app_id,
@@ -87,16 +89,46 @@ class plgContentFacebookEmbed extends JPlugin
 		//'cookie' => true, // enable optional cookie support
 		//));
         
- 		if ( JString::strpos( $row->text, 'facebook_albumid' ) === false ) {
+ 		if ( JString::strpos( $row->text, 'fbembed' ) === false ) {
             return true;
 		}
+		
+		//On passe une chaine {fbembed album_id|photo1_is|photo2_id...}
+		// expression to search for
+        $regex = '/{fbembed\s*.*?}/i';
+ 
+		// find all instances of plugin and put in $matches
+		preg_match_all( $regex, $row->text, $matches );
 
-		$row->text = preg_replace('|(facebook_albumid=([a-zA-Z0-9_-]+))|e', '$this->facebookCodeEmbed("\2")', $row->text);       
+		// Number of plugins
+		$count = count( $matches[0] );
+				
+		// plugin only processes if there are any instances of the plugin in the text
+		if ( $count ) {
+			$this->_process( $row, $matches, $count, $regex);
+		}	
+		
 		return true;        
         
 	}
-    
-  		
+	
+	 protected function _process( &$row, &$matches, $count, $regex )
+	{
+			for ( $i=0; $i < $count; $i++ )
+			{
+					$content = str_replace( 'fbembed', '', $matches[0][$i] );
+					$content = str_replace( '{', '', $content );
+					$content = str_replace( '}', '', $content );
+					$content = trim( $content );
+
+					$slideshow = $this->facebookCodeEmbedv2($content);
+					$row->text      = preg_replace( '{'. $matches[0][$i] .'}', $slideshow, $row->text );
+			}
+			
+			// removes tags without matching module positions
+            $row->text = preg_replace( $regex, '', $row->text );
+	}
+    		
 	static		function compareCreatedTime($a, $b) { 
 		return strcmp($a['created_time'], $b['created_time']);
 	}
@@ -140,17 +172,17 @@ class plgContentFacebookEmbed extends JPlugin
 	*
 	* @param string The text string to find and replace
 	*/       
-	public function facebookCodeEmbed( $vCode )
+	public function facebookCodeEmbedv2( $content )
 	{
-		//$plugin	=& JPluginHelper::getPlugin('content', 'facebookembed');
-		//$pluginParams = $this->params;
+		//On demonte la chaine album_id|photo1_is|photo2_id....
+		$items = array();
+		$items = explode('|', $content);
 		
-		$album_id = $vCode;
-		//$album_name = '';
-		//$album_description = '';
-		
+		//L'album id est en premier
+		$album_id = $items[0];
+			
 		/* Lorsque le id album est de 1..12 : c'est un index depuis le dernier créé!*/
-		if ($vCode<=12) 
+		if ($album_id<=12) 
 		{
 			$albums = $this->facebook->api('/'.$this->fan_id.'/albums?fields=id,type,created_time');
 			usort($albums['data'], array($this, 'compareCreatedTime'));
@@ -159,8 +191,9 @@ class plgContentFacebookEmbed extends JPlugin
 			foreach($albums['data'] as $album)
 			{      
 				if ($album['type']=='normal') {
-					if ($index==$vCode) {
+					if ($index==$album_id) {
 						$album_id = $album['id'];
+						break;
 					}
 					$index++;
 				}
@@ -171,30 +204,46 @@ class plgContentFacebookEmbed extends JPlugin
 	
 		//Album details
 		$album = $this->facebookGraphAPI_getalbuminfo($album_id);
-		//$album = $this->facebook->api("/".$album_id."?fields=name,description");
-		//$album_name = $album['name'];
-		//if (isset($album['description'])) $album_description = $album['description'];
-			
+				
 		//Photos de l'album
+		$photos_id_list=array();
+		if (count($items)>1) {
+			$photos_id_list = array_slice($items, 1);
+		}
+		//On demande les photos a facebook...
 		$photos = $this->facebookGraphAPI_getalbumphotos($album_id);
-		
+				
 		//Construction du slideshow
 		$slideshow = "<div class='facebook_slider'><ul class='ppy-imglist'>";
+		
+		$photos_counter=0;
 		foreach( $photos['data'] as $keys => $values ){
 
-			$caption='';
-			if (isset($values['name'])) {
-				if( $values['name'] == '' ){
-					$caption = "";
-				}else{
-					$caption = $values['name'];
-				} 
+			//On verifie le nombre max de photos
+			if ($photos_counter<$this->max_photos) {
+			
+				//On check l'id dans la liste
+				if ((count($photos_id_list)==0) || (in_array($values['id'] , $photos_id_list)))
+				{
+					$caption='';
+					if (isset($values['name'])) {
+						if( $values['name'] == '' ){
+							$caption = "";
+						}else{
+							$caption = $values['name'];
+						} 
+					}
+					
+					$slideshow .= "<li><a href=\"" . $values['source'] . "\" >";
+					$slideshow .= "<img src='" . $values['images'][4]['source'] . "' alt=\"" . $caption . "\" />";
+				
+					$slideshow .= "</a></li>";
+					$photos_counter++;
+				}
 			}
-
-			$slideshow .= "<li><a href=\"" . $values['source'] . "\" >";
-			$slideshow .= "<img src='" . $values['images'][4]['source'] . "' alt=\"" . $caption . "\" />";
-		
-			$slideshow .= "</a></li>"; 
+			else break;
+			
+			
 		}
 
 		$slideshow .= "</ul>";
