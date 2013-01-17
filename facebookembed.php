@@ -28,6 +28,7 @@ class plgContentFacebookEmbed extends JPlugin
 	public $app_id;
 	public $secret_key;
 	public $max_photos;
+	public $slideshow;
 
 	/**
 	* Constructor
@@ -45,12 +46,15 @@ class plgContentFacebookEmbed extends JPlugin
 		$this->app_id=$pluginParams->get('app_id','');
 		$this->secret_key=$pluginParams->get('secret_key','');
 		$this->max_photos=$pluginParams->get('max_photos','10');
+		$this->slideshow=$pluginParams->get('slideshow','popeye');
 		
 		$this->facebook = new Facebook(array(
 		'appId'  => $this->app_id,
 		'secret' => $this->secret_key,
 		'cookie' => true, // enable optional cookie support
 		));
+		
+	
 	}
 
 	
@@ -93,7 +97,7 @@ class plgContentFacebookEmbed extends JPlugin
             return true;
 		}
 		
-		//On passe une chaine {fbembed album_id|photo1_is|photo2_id...}
+		//On passe une chaine {fbembed album_id[,photo1_is,photo2_id...]}
 		// expression to search for
         $regex = '/{fbembed\s*.*?}/i';
  
@@ -122,7 +126,7 @@ class plgContentFacebookEmbed extends JPlugin
 					$content = trim( $content );
 
 					$slideshow = $this->facebookCodeEmbedv2($content);
-					$row->text      = preg_replace( '{'. $matches[0][$i] .'}', $slideshow, $row->text );
+					$row->text = preg_replace( '{'. $matches[0][$i] .'}', $slideshow, $row->text );
 			}
 			
 			// removes tags without matching module positions
@@ -174,9 +178,9 @@ class plgContentFacebookEmbed extends JPlugin
 	*/       
 	public function facebookCodeEmbedv2( $content )
 	{
-		//On demonte la chaine album_id|photo1_is|photo2_id....
+		//On demonte la chaine album_id[,photo1_is,photo2_id....]
 		$items = array();
-		$items = explode('|', $content);
+		$items = explode(',', $content);
 		
 		//L'album id est en premier
 		$album_id = $items[0];

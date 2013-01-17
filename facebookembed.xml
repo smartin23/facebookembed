@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<extension version="1.7" type="plugin" group="content">
+<extension version="2.5" type="plugin" group="content">
 	<name>Content - Facebook Album Embedding</name>
 	<author>Stephane Martin</author>
 	<creationDate>Octobre 2012</creationDate>
@@ -8,7 +8,7 @@
 	<authorEmail>stephane.martin23@gmail.com</authorEmail>
 	<authorUrl>www.lagrangeweb.fr</authorUrl>
 	<version>1.0</version>
-	<description>Replaces fbembed album_id|photo1_id|photo2_id...} tag in content with a list of facebook album photos</description>
+	<description>Replaces fbembed album_id[,photo1_id,photo2_id...]} tag in content with a list of facebook album photos</description>
     
     <config>
 		<fields name="params">
@@ -17,7 +17,8 @@
 				<field name="fan_id" type="text" size="20" default="" label="Facebook Fan Page ID" description=""/>
 				<field name="app_id" type="text" size="20" default="" label="Facebook Application ID" description=""/>
 				<field name="secret_key" type="text" size="48" default="" label="Facebook Secret Key" description=""/>
-				<field name="max_photos" type="text" size="8" default="" label="Number of Album photos displayed" description=""/>
+				<field name="max_photos" type="text" size="8" default="" label="Number of photos per album displayed" description=""/>
+				<field name="slideshow" type="text" size="48" default="popeye" label="Slideshow type" description=""/>
 			</fieldset>
 		</fields>
 	</config> 
