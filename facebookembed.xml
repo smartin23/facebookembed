@@ -17,7 +17,7 @@
 				<field name="fan_id" type="text" size="20" default="" label="Facebook Fan Page ID" description=""/>
 				<field name="app_id" type="text" size="20" default="" label="Facebook Application ID" description=""/>
 				<field name="secret_key" type="text" size="48" default="" label="Facebook Secret Key" description=""/>
-				<field name="max_photos" type="text" size="8" default="" label="Number of photos per album displayed" description=""/>
+				<field name="max_photos" type="text" size="8" default="10" label="Number of photos per album displayed" description=""/>
 				<field name="slideshow" type="text" size="48" default="popeye" label="Slideshow type" description=""/>
 			</fieldset>
 		</fields>

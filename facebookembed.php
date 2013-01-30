@@ -53,10 +53,7 @@ class plgContentFacebookEmbed extends JPlugin
 		'secret' => $this->secret_key,
 		'cookie' => true, // enable optional cookie support
 		));
-		
-	
 	}
-
 	
  	/**
 	* Example prepare content method in Joomla 1.6/1.7/2.5
@@ -74,10 +71,6 @@ class plgContentFacebookEmbed extends JPlugin
 		//$plugin	=& JPluginHelper::getPlugin('content', 'facebookembed');
 		//$pluginParams = $this->params;
 	
-		//$this->fan_id=$pluginParams->get('fan_id','');
-		//$this->app_id=$pluginParams->get('app_id','');
-		//$this->secret_key=$pluginParams->get('secret_key','');
-	
 		//$uri =& JURI::getInstance();
 		//$curl = $uri->toString();
 	
@@ -86,13 +79,7 @@ class plgContentFacebookEmbed extends JPlugin
 		//$lang=&JFactory::getLanguage();
 		//$lang_tag=$lang->getTag();
 		//$lang_tag=str_replace("-","_",$lang_tag);
-		
-		//$this->facebook = new Facebook(array(
-		//'appId'  => $this->app_id,
-		//'secret' => $this->secret_key,
-		//'cookie' => true, // enable optional cookie support
-		//));
-        
+      
  		if ( JString::strpos( $row->text, 'fbembed' ) === false ) {
             return true;
 		}
@@ -148,7 +135,7 @@ class plgContentFacebookEmbed extends JPlugin
 	
 	public function facebookFQL_getalbuminfo($album_id) {
 		
-		$fql    =   "SELECT aid, object_id, name, description FROM album WHERE object_id = '".$album_id."'";
+		$fql    =   "SELECT name, description FROM album WHERE object_id = '".$album_id."'";
 		$param  =   array(
 
 		 'method'    => 'fql.query',
@@ -167,6 +154,21 @@ class plgContentFacebookEmbed extends JPlugin
 		$photos = $this->facebook->api("/".$album_id."/photos", "get");
 		
 		return $photos;
+	}
+	
+		public function facebookFQL_getalbumphotos($album_id)
+	{
+				
+		$fql    =   "SELECT src, src_big, caption FROM photo WHERE album_object_id = '".$album_id."'";
+		$param  =   array(
+
+		 'method'    => 'fql.query',
+		 'query'     => $fql,
+		 'callback'  => ''
+
+		);
+		$fqlResult   =   $this->facebook->api($param);
+		return $fqlResult;
 	}
     
  	/**
@@ -207,7 +209,8 @@ class plgContentFacebookEmbed extends JPlugin
 		}
 	
 		//Album details
-		$album = $this->facebookGraphAPI_getalbuminfo($album_id);
+		//$album = $this->facebookGraphAPI_getalbuminfo($album_id);
+		$album = $this->facebookFQL_getalbuminfo($album_id);
 				
 		//Photos de l'album
 		$photos_id_list=array();
@@ -215,13 +218,16 @@ class plgContentFacebookEmbed extends JPlugin
 			$photos_id_list = array_slice($items, 1);
 		}
 		//On demande les photos a facebook...
-		$photos = $this->facebookGraphAPI_getalbumphotos($album_id);
+		//$photos = $this->facebookGraphAPI_getalbumphotos($album_id);
+		$photos = $this->facebookFQL_getalbumphotos($album_id);
 				
 		//Construction du slideshow
 		$slideshow = "<div class='facebook_slider'><ul class='ppy-imglist'>";
 		
 		$photos_counter=0;
-		foreach( $photos['data'] as $keys => $values ){
+		
+		//Version Graph API
+		/*foreach( $photos['data'] as $keys => $values ){
 
 			//On verifie le nombre max de photos
 			if ($photos_counter<$this->max_photos) {
@@ -248,8 +254,36 @@ class plgContentFacebookEmbed extends JPlugin
 			else break;
 			
 			
-		}
+		}*/
+		//Version FQL
+		foreach( $photos as $photo ){
 
+			//On verifie le nombre max de photos
+			if ($photos_counter<$this->max_photos) {
+			
+				//On check l'id dans la liste
+				if ((count($photos_id_list)==0) || (in_array($values['id'] , $photos_id_list)))
+				{
+					$caption='';
+					if (isset($photo['name'])) {
+						if( $photo['name'] == '' ){
+							$caption = "";
+						}else{
+							$caption = $photo['name'];
+						} 
+					}
+					
+					$slideshow .= "<li><a href=\"" . $photo['src_big'] . "\" >";
+					$slideshow .= "<img src='" . $photo['src_big'] . "' alt=\"" . $caption . "\" />";
+				
+					$slideshow .= "</a></li>";
+					$photos_counter++;
+				}
+			}
+			else break;
+					
+		}
+		
 		$slideshow .= "</ul>";
 		$slideshow .= "<div class=\"ppy-outer\">
 						<div class=\"ppy-stage\">
@@ -268,8 +302,8 @@ class plgContentFacebookEmbed extends JPlugin
 		$slideshow .= "</div>";
 		
 		//Titre de l'album
-		$slideshow .= "<div class=\"facebook_slider_name\">".$album['name']."</div>";
-		$slideshow .= "<div class=\"facebook_slider_description\">".$album['description']."</div>";
+		$slideshow .= "<div class=\"facebook_slider_name\">".$album[0]['name']."</div>";
+		$slideshow .= "<div class=\"facebook_slider_description\">".$album[0]['description']."</div>";
 		
 		return $slideshow;
 	}
